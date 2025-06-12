@@ -31,4 +31,4 @@ python agent.py dev
 ```
 
 4. Start Communicating through LiveKit. Read LiveKit Documentation for setup.
-   ![LiveKit](https://livekit.io/)
+   [LiveKit](https://livekit.io/)
