@@ -1,6 +1,5 @@
-from dotenv import load_dotenv
 import time
-
+from dotenv import load_dotenv
 from livekit import agents
 from livekit.agents import AgentSession, Agent, RoomInputOptions
 from livekit.plugins import (
@@ -23,6 +22,7 @@ class Assistant(Agent):
 
 
 async def entrypoint(ctx: agents.JobContext):
+    # Initialize session components
     session = AgentSession(
         stt=groq.STT(model="whisper-large-v3-turbo", language="en"),
         llm=groq.LLM(model="llama3-8b-8192"),
@@ -40,38 +40,57 @@ async def entrypoint(ctx: agents.JobContext):
         ),
     )
 
-    # Timing metrics
-    start_time = time.time()
-    metrics.mark_event("session_start")
+    # Start timing metrics
+    session_start = time.time()
+    metrics.mark_event("session_start", session_start)
 
-    # Start interaction
+    # STT timing (End of Utterance detection)
     stt_start = time.time()
+
+    # LLM processing start
+    llm_start = time.time()
+
+    # Generate reply and capture timing
     await session.generate_reply(
         instructions="Greet the user and offer your assistance."
     )
+
+    # Capture end of utterance
     stt_end = time.time()
     metrics.mark_event("EOU", stt_end)
 
-    llm_start = time.time()
-    # simulate waiting for first token or capture actual first-token callback
-    # ...
-    llm_first_token_time = llm_start + 0.5  # mockup
+    # Simulate or capture actual first token time
+    # In real implementation, you'd hook into the LLM's streaming callback
+    llm_first_token_time = llm_start + 0.5  # Replace with actual first token callback
     llm_end = time.time()
 
+    # TTS timing
     tts_start = time.time()
-    # simulate TTS processing
-    tts_end = tts_start + 0.7  # mockup
+    # In real implementation, hook into TTS start/end callbacks
+    tts_end = tts_start + 0.7  # Replace with actual TTS timing
 
-    end_time = time.time()
+    session_end = time.time()
 
-    # Logging all metrics
-    metrics.log_metric("EOU_delay", stt_end - stt_start)
-    metrics.log_metric("TTFT", llm_first_token_time - stt_end)
-    metrics.log_metric("TTFB", llm_end - stt_end)
-    metrics.log_metric("Total_latency", end_time - stt_start)
+    # Calculate and log all metrics
+    eou_delay = stt_end - stt_start
+    ttft = llm_first_token_time - stt_end  # Time To First Token
+    ttfb = llm_end - stt_end               # Time To Full Buffer
+    total_latency = session_end - stt_start
 
-    # Optional: log usage summary
+    # Log metrics
+    metrics.log_metric("EOU_delay", eou_delay)
+    metrics.log_metric("TTFT", ttft)
+    metrics.log_metric("TTFB", ttfb)
+    metrics.log_metric("Total_latency", total_latency)
+    metrics.log_metric("TTS_duration", tts_end - tts_start)
+    metrics.log_metric("Session_duration", session_end - session_start)
+
+    # Save metrics to Excel file
+    metrics.save_to_excel()
+
+    # Optional: log summary to console
     metrics.log_summary()
+
 
 if __name__ == "__main__":
     agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))
